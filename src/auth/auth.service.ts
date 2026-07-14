@@ -14,7 +14,7 @@ export class AuthService {
     private configService: ConfigService,
     private usersService: UsersService,
     private jwtService: JwtService,
-    private sessions = [],
+    // private sessions = [],
   ) {}
 
   async validateUser(login: string, pass: string) {

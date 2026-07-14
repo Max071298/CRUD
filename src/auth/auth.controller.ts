@@ -3,9 +3,11 @@ import {
   Controller,
   NotImplementedException,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from 'src/users/dto/create-user.dto';
+import { JwtGuard } from './jwt.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -21,6 +23,7 @@ export class AuthController {
     throw new NotImplementedException();
   }
 
+  @UseGuards(JwtGuard)
   @Post('signOut')
   async signOut() {
     throw new NotImplementedException();

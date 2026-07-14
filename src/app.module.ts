@@ -3,10 +3,12 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { ConfigModule } from '@nestjs/config';
+import { JwtStrategy } from './auth/jwt.strategy';
 
 @Module({
-  imports: [AuthModule, UsersModule],
+  imports: [ConfigModule.forRoot({ isGlobal: true }), AuthModule, UsersModule],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, JwtStrategy],
 })
 export class AppModule {}
