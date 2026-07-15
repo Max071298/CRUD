@@ -66,4 +66,9 @@ export class AuthService {
 
     return await this.generateTokens(payload);
   }
+
+  async refreshTokens(userId: string, login: string) {
+    const payload: Payload = { sub: userId, login };
+    return await this.generateTokens(payload);
+  }
 }
