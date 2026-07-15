@@ -3,12 +3,14 @@ import {
   Controller,
   NotImplementedException,
   Post,
+  Request,
   UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from 'src/users/dto/create-user.dto';
 import { JwtGuard } from './jwt.guard';
 import { RefreshJwtGuard } from './refresh.guard';
+import { SignInUserDto } from 'src/users/dto/signIn-user.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -16,12 +18,12 @@ export class AuthController {
 
   @Post('register')
   async register(@Body() dto: CreateUserDto) {
-    throw new NotImplementedException();
+    return await this.authService.register(dto);
   }
 
   @Post('signIn')
-  async signIn() {
-    throw new NotImplementedException();
+  async signIn(@Body() dto: SignInUserDto) {
+    return this.authService.signIn(dto);
   }
 
   @UseGuards(JwtGuard)
@@ -32,7 +34,10 @@ export class AuthController {
 
   @UseGuards(RefreshJwtGuard)
   @Post('refresh')
-  async refresh() {
-    throw new NotImplementedException();
+  async refresh(@Request() req) {
+    return await this.authService.refreshTokens(
+      req.user.userId,
+      req.user.login,
+    );
   }
 }

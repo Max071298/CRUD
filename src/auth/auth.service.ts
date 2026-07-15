@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { CreateUser, Payload } from 'src/common/interfaces';
+import { CreateUser, Payload, SignInUser } from 'src/common/interfaces';
 import { UsersService } from 'src/users/users.service';
 
 @Injectable()
@@ -14,7 +14,6 @@ export class AuthService {
     private configService: ConfigService,
     private usersService: UsersService,
     private jwtService: JwtService,
-    // private sessions = [],
   ) {}
 
   async validateUser(login: string, pass: string) {
@@ -57,7 +56,8 @@ export class AuthService {
     return await this.generateTokens(payload);
   }
 
-  async signIn(login: string, password: string) {
+  async signIn(userData: SignInUser) {
+    const { login, password } = userData;
     const user = await this.validateUser(login, password);
 
     if (!user) throw new UnauthorizedException('Incorrect login or password');

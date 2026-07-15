@@ -6,6 +6,8 @@ export interface CreateUser {
   description: string;
 }
 
+export interface SignInUser extends Pick<CreateUser, 'login' | 'password'> {}
+
 export interface User extends CreateUser {
   userId: string;
 }
