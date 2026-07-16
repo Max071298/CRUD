@@ -1,8 +1,11 @@
 import {
+  Body,
   Controller,
+  Delete,
   Get,
   NotImplementedException,
   Param,
+  Patch,
   Query,
   Request,
   UseGuards,
@@ -19,6 +22,18 @@ export class UsersController {
   async getPersonalData(@Request() req) {
     return this.usersService.findById(req.user.userId);
   }
+
+  @UseGuards(JwtGuard)
+  @Delete('me')
+  async deleteUser(@Request() req) {
+    throw new NotImplementedException();
+  }
+
+  @UseGuards(JwtGuard)
+  @Patch('me')
+  async updateUser(@Request() req, @Body() dto) {
+    throw new NotImplementedException();
+  } // определить dto для обновления юзера (наверное age, description и password)
 
   @UseGuards(JwtGuard)
   @Get(':login')

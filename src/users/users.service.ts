@@ -1,38 +1,43 @@
 import { Injectable } from '@nestjs/common';
-import { randomUUID, UUID } from 'crypto';
-import { CreateUser, User } from 'src/common/interfaces';
+import { InjectRepository } from '@nestjs/typeorm';
+import { UUID } from 'crypto';
+import type { ICreateUser, IUser } from 'src/common/interfaces';
+import { User } from './entities/user.entity';
+import { Repository } from 'typeorm';
 
 @Injectable()
 export class UsersService {
-  private readonly users: User[] = [
-    {
-      userId: '8cfd17e7-63eb-409d-9571-0323a3544e75',
-      login: 'max',
-      email: 'maks123@mail.ru',
-      password: '12345678',
-      age: 22,
-      description: 'My name is Max',
-    },
-  ];
+  constructor(
+    @InjectRepository(User)
+    private usersRepository: Repository<User>,
+  ) {}
 
   async findByLogin(login: string) {
-    return this.users.find((user) => user.login === login);
+    return await this.usersRepository.findOneBy({
+      login,
+      deleted_at: undefined,
+    });
   }
 
   async findById(id: UUID) {
-    return this.users.find((user) => user.userId === id);
+    return await this.usersRepository.findOneBy({
+      userId: id,
+      deleted_at: undefined,
+    });
   }
 
   async findByEmail(email: string) {
-    return this.users.find((user) => user.email === email);
+    return await this.usersRepository.findOneBy({
+      email,
+      deleted_at: undefined,
+    });
   }
 
   async filterByLogin(login: string, limit?: number, page?: number) {
-    const users = this.users
-      .filter((user) => user.login.includes(login))
-      .map((user) => {
-        (user.login, user.email, user.age, user.description);
-      });
+    const users = await this.usersRepository.find({
+      where: { login, deleted_at: undefined },
+      select: { login: true, email: true, age: true, description: true },
+    });
 
     if (!limit) return users;
     if (!page) return users.slice(0, limit);
@@ -44,10 +49,17 @@ export class UsersService {
     return users.slice((pageToUse - 1) * limit, pageToUse * limit);
   }
 
-  async createUser(user: CreateUser) {
-    const userId = randomUUID();
-    const newUser = { userId, ...user };
-    this.users.push(newUser);
+  async createUser(user: ICreateUser) {
+    const newUser = await this.usersRepository.save(user);
     return newUser;
+  }
+
+  async deleteUser(id: UUID) {
+    const timestamp = Date.now();
+    const user = await this.findById(id);
+    if (user) {
+      user.deleted_at = timestamp;
+      await this.usersRepository.save(user);
+    }
   }
 }
