@@ -1,6 +1,6 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
-@Entity('user')
+@Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
   userId: string;
@@ -20,9 +20,9 @@ export class User {
   @Column('text')
   description: string;
 
-  @Column('integer', { nullable: true })
+  @Column('bigint', { nullable: true })
   updated_at: number;
 
-  @Column('integer', { nullable: true })
+  @Column('bigint', { nullable: true })
   deleted_at: number;
 }

@@ -1,4 +1,4 @@
-export interface CreateUser {
+export interface ICreateUser {
   login: string;
   email: string;
   password: string;
@@ -6,13 +6,20 @@ export interface CreateUser {
   description: string;
 }
 
-export interface SignInUser extends Pick<CreateUser, 'login' | 'password'> {}
+export interface ISignInUser extends Pick<ICreateUser, 'login' | 'password'> {}
 
-export interface User extends CreateUser {
+export interface IUser extends ICreateUser {
   userId: string;
 }
 
-export interface Payload {
+export interface IPayload {
   sub: string;
   login: string;
+}
+
+export interface IUpdateUser {
+  email?: string;
+  password?: string;
+  age?: number;
+  description?: string;
 }

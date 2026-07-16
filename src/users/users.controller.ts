@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtGuard } from 'src/auth/jwt.guard';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Controller('users')
 export class UsersController {
@@ -20,20 +21,20 @@ export class UsersController {
   @UseGuards(JwtGuard)
   @Get('me')
   async getPersonalData(@Request() req) {
-    return this.usersService.findById(req.user.userId);
+    return await this.usersService.findById(req.user.userId);
   }
 
   @UseGuards(JwtGuard)
   @Delete('me')
   async deleteUser(@Request() req) {
-    throw new NotImplementedException();
+    return await this.usersService.deleteUser(req.user.userId);
   }
 
   @UseGuards(JwtGuard)
   @Patch('me')
-  async updateUser(@Request() req, @Body() dto) {
-    throw new NotImplementedException();
-  } // определить dto для обновления юзера (наверное age, description и password)
+  async updateUser(@Request() req, @Body() dto: UpdateUserDto) {
+    return await this.usersService.updateUser(req.user.userId, dto);
+  }
 
   @UseGuards(JwtGuard)
   @Get(':login')

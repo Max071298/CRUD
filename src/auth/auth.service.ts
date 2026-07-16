@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { CreateUser, Payload, SignInUser } from 'src/common/interfaces';
+import { ICreateUser, IPayload, ISignInUser } from 'src/common/interfaces';
 import { UsersService } from 'src/users/users.service';
 
 @Injectable()
@@ -27,7 +27,7 @@ export class AuthService {
     return null;
   }
 
-  async generateTokens(payload: Payload) {
+  async generateTokens(payload: IPayload) {
     return {
       access_token: this.jwtService.sign(payload, {
         secret: this.configService.get('JWT_SECRET_KEY'),
@@ -40,7 +40,7 @@ export class AuthService {
     };
   }
 
-  async register(user: CreateUser) {
+  async register(user: ICreateUser) {
     const isExistingUser =
       (await this.usersService.findByEmail(user.email)) ||
       (await this.usersService.findByLogin(user.login));
@@ -51,24 +51,24 @@ export class AuthService {
       );
 
     const newUser = await this.usersService.createUser(user);
-    const payload: Payload = { sub: newUser.userId, login: newUser.login };
+    const payload: IPayload = { sub: newUser.userId, login: newUser.login };
 
     return await this.generateTokens(payload);
   }
 
-  async signIn(userData: SignInUser) {
+  async signIn(userData: ISignInUser) {
     const { login, password } = userData;
     const user = await this.validateUser(login, password);
 
     if (!user) throw new UnauthorizedException('Incorrect login or password');
 
-    const payload: Payload = { sub: user.userId, login: user.login };
+    const payload: IPayload = { sub: user.userId, login: user.login };
 
     return await this.generateTokens(payload);
   }
 
   async refreshTokens(userId: string, login: string) {
-    const payload: Payload = { sub: userId, login };
+    const payload: IPayload = { sub: userId, login };
     return await this.generateTokens(payload);
   }
 }
