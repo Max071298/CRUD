@@ -5,6 +5,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { checkPassword } from 'src/common/checkPassword';
+import { hashPassword } from 'src/common/hashPassword';
 import { ICreateUser, IPayload, ISignInUser } from 'src/common/interfaces';
 import { UsersService } from 'src/users/users.service';
 
@@ -19,7 +21,7 @@ export class AuthService {
   async validateUser(login: string, pass: string) {
     const user = await this.usersService.findByLogin(login);
 
-    if (user && user.password === pass) {
+    if (user && (await checkPassword(pass, user.password))) {
       const { password, ...result } = user;
       return result;
     }
@@ -49,6 +51,8 @@ export class AuthService {
       throw new ConflictException(
         'User with such email or/and login is already exists',
       );
+
+    user.password = await hashPassword(user.password);
 
     const newUser = await this.usersService.createUser(user);
     const payload: IPayload = { sub: newUser.userId, login: newUser.login };
