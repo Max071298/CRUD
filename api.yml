@@ -1,0 +1,168 @@
+---
+openapi: 3.0.0
+info:
+  title: Users
+  description: Users API
+  version: '1.0'
+  contact: {}
+paths:
+  '/api':
+    get:
+      operationId: AppController_getHello
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      tags:
+        - App
+  '/api/auth/register':
+    post:
+      operationId: AuthController_register
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              '$ref': '#/components/schemas/CreateUserDto'
+      responses:
+        '201':
+          description: ''
+      tags:
+        - Auth
+  '/api/auth/signin':
+    post:
+      operationId: AuthController_signIn
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              '$ref': '#/components/schemas/SignInUserDto'
+      responses:
+        '201':
+          description: ''
+      tags:
+        - Auth
+  '/api/auth/signOut':
+    post:
+      operationId: AuthController_signOut
+      parameters: []
+      responses:
+        '201':
+          description: ''
+      tags:
+        - Auth
+  '/api/auth/refresh':
+    post:
+      operationId: AuthController_refresh
+      parameters: []
+      responses:
+        '201':
+          description: ''
+      tags:
+        - Auth
+  '/api/users/me':
+    get:
+      operationId: UsersController_getPersonalData
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      tags:
+        - Users
+    delete:
+      operationId: UsersController_deleteUser
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      tags:
+        - Users
+    patch:
+      operationId: UsersController_updateUser
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              '$ref': '#/components/schemas/UpdateUserDto'
+      responses:
+        '200':
+          description: ''
+      tags:
+        - Users
+  '/api/users/{login}':
+    get:
+      operationId: UsersController_getUsersData
+      parameters:
+        - name: login
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      tags:
+        - Users
+tags:
+  - name: users
+    description: ''
+servers: []
+components:
+  schemas:
+    CreateUserDto:
+      type: object
+      required:
+        - login
+        - email
+        - password
+        - age
+        - description
+      properties:
+        login:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 7
+          format: password
+        age:
+          type: integer
+          maximum: 120
+        description:
+          type: string
+          maxLength: 1000
+    SignInUserDto:
+      type: object
+      required:
+        - login
+        - password
+      properties:
+        login:
+          type: string
+        password:
+          type: string
+          minLength: 7
+          format: password
+    UpdateUserDto:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 7
+          format: password
+        age:
+          type: integer
+          maximum: 120
+        description:
+          type: string
+          maxLength: 1000
