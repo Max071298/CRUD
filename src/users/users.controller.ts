@@ -12,6 +12,7 @@ import {
 import { UsersService } from './users.service';
 import { JwtGuard } from 'src/auth/jwt.guard';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { PaginationQueryDto } from './dto/pagination-query.dto';
 
 @Controller('users')
 export class UsersController {
@@ -39,9 +40,9 @@ export class UsersController {
   @Get(':login')
   async getUsersData(
     @Param('login') login: string,
-    @Query('limit') limit: number,
-    @Query('page') page: number,
+    @Query() dto: PaginationQueryDto,
   ) {
-    return await this.usersService.filterByLogin(login, limit, page);
+    const options = { page: dto.page, limit: dto.limit };
+    return await this.usersService.paginateByLogin(login, options);
   }
 }

@@ -4,6 +4,7 @@ import { UUID } from 'crypto';
 import type { ICreateUser, IUpdateUser, IUser } from 'src/common/interfaces';
 import { User } from './entities/user.entity';
 import { ILike, IsNull, Repository } from 'typeorm';
+import { IPaginationOptions, paginate } from 'nestjs-typeorm-paginate';
 
 @Injectable()
 export class UsersService {
@@ -11,6 +12,10 @@ export class UsersService {
     @InjectRepository(User)
     private usersRepository: Repository<User>,
   ) {}
+
+  async paginateByLogin(login: string, options: IPaginationOptions) {
+    return await paginate(this.usersRepository, options, { login });
+  }
 
   async findByLogin(login: string) {
     return await this.usersRepository.findOne({
@@ -52,21 +57,21 @@ export class UsersService {
     });
   }
 
-  async filterByLogin(login: string, limit?: number, page?: number) {
-    const users = await this.usersRepository.find({
-      where: { login: ILike(`%${login}%`), deleted_at: IsNull() },
-      select: { login: true, email: true, age: true, description: true },
-    });
+  // async filterByLogin(login: string, limit?: number, page?: number) {
+  //   const users = await this.usersRepository.find({
+  //     where: { login: ILike(`%${login}%`), deleted_at: IsNull() },
+  //     select: { login: true, email: true, age: true, description: true },
+  //   });
 
-    if (!limit || limit < 1) return users;
-    if (!page || page < 1) return users.slice(0, limit);
+  //   if (!limit || limit < 1) return users;
+  //   if (!page || page < 1) return users.slice(0, limit);
 
-    const totalPages = Math.ceil(users.length / limit);
+  //   const totalPages = Math.ceil(users.length / limit);
 
-    const pageToUse = page <= totalPages ? page : totalPages;
+  //   const pageToUse = page <= totalPages ? page : totalPages;
 
-    return users.slice((pageToUse - 1) * limit, pageToUse * limit);
-  }
+  //   return users.slice((pageToUse - 1) * limit, pageToUse * limit);
+  // }
 
   async createUser(user: ICreateUser) {
     const newUser = await this.usersRepository.save(user);
