@@ -21,7 +21,9 @@
     "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js",
     "migration:generate": "npm run typeorm -- -d src/database/data-source.ts migration:generate src/database/migrations/my-migration",
     "migration:run": "npm run typeorm -- -d src/database/data-source.ts migration:run",
-    "migration:revert": "npm run typeorm -- -d src/database/data-source.ts migration:revert"
+    "migration:revert": "npm run typeorm -- -d src/database/data-source.ts migration:revert",
+    "docker:build": "docker-compose build",
+    "docker:run": "docker-compose up"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
