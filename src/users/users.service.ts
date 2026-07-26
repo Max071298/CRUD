@@ -14,7 +14,17 @@ export class UsersService {
   ) {}
 
   async paginateByLogin(login: string, options: IPaginationOptions) {
-    return await paginate(this.usersRepository, options, { login });
+    return (
+      await paginate(this.usersRepository, options, {
+        select: {
+          login: true,
+          email: true,
+          age: true,
+          description: true,
+        },
+        where: { login: ILike(`%${login}%`), deleted_at: IsNull() },
+      })
+    ).items;
   }
 
   async findByLogin(login: string) {
@@ -24,6 +34,7 @@ export class UsersService {
         deleted_at: IsNull(),
       },
       select: {
+        userId: true,
         login: true,
         password: true,
       },
@@ -56,22 +67,6 @@ export class UsersService {
       },
     });
   }
-
-  // async filterByLogin(login: string, limit?: number, page?: number) {
-  //   const users = await this.usersRepository.find({
-  //     where: { login: ILike(`%${login}%`), deleted_at: IsNull() },
-  //     select: { login: true, email: true, age: true, description: true },
-  //   });
-
-  //   if (!limit || limit < 1) return users;
-  //   if (!page || page < 1) return users.slice(0, limit);
-
-  //   const totalPages = Math.ceil(users.length / limit);
-
-  //   const pageToUse = page <= totalPages ? page : totalPages;
-
-  //   return users.slice((pageToUse - 1) * limit, pageToUse * limit);
-  // }
 
   async createUser(user: ICreateUser) {
     const newUser = await this.usersRepository.save(user);

@@ -1,15 +1,7 @@
-import {
-  Body,
-  Controller,
-  NotImplementedException,
-  Post,
-  Request,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Post, Request, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from 'src/users/dto/create-user.dto';
-import { JwtGuard } from './jwt.guard';
-import { RefreshJwtGuard } from './refresh.guard';
+import { RefreshJwtGuard } from './guards/refresh.guard';
 import { SignInUserDto } from 'src/users/dto/signIn-user.dto';
 
 @Controller('auth')
@@ -24,12 +16,6 @@ export class AuthController {
   @Post('signin')
   async signIn(@Body() dto: SignInUserDto) {
     return this.authService.signIn(dto);
-  }
-
-  @UseGuards(JwtGuard)
-  @Post('signOut')
-  async signOut() {
-    throw new NotImplementedException();
   }
 
   @UseGuards(RefreshJwtGuard)

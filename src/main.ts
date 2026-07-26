@@ -1,17 +1,23 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
-import { DocumentBuilder, OpenAPIObject, SwaggerModule } from '@nestjs/swagger';
-import { readFile } from 'fs/promises';
-import { load } from 'js-yaml';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('api');
 
-  const openApiYaml = await readFile('api.yml', 'utf8');
-  const documentFactory = (await load(openApiYaml)) as OpenAPIObject;
-  SwaggerModule.setup('api', app, documentFactory);
+  const config = new DocumentBuilder()
+    .setTitle('My NestJS API')
+    .setDescription('Basic NestJS API')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .addSecurityRequirements('bearer')
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+
+  SwaggerModule.setup('api', app, document);
 
   app.useGlobalPipes(
     new ValidationPipe({
