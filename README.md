@@ -1,6 +1,30 @@
-1. npm install
-2. cp .env.example .env
-3. npm run docker:run
-4. npm run migration:generate
-5. npm run migration:run
-6. npm run start:dev
+## Running application
+
+#### 1.Create .env file
+
+```
+cp .env.example .env
+```
+
+#### 2.Create docker container for pg
+
+```
+npm run docker:run
+```
+
+#### 3.Generate migrations
+
+```
+npm run migration:generate
+```
+
+#### 4.Run migrations
+
+```
+npm run migration:run
+```
+
+#### 6. Run application
+
+```
+npm run start
