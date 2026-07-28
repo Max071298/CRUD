@@ -1,4 +1,5 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn, OneToMany } from 'typeorm';
+import { Avatar } from './avatars.entity';
 
 @Entity('users')
 export class User {
@@ -25,4 +26,7 @@ export class User {
 
   @Column('bigint', { nullable: true })
   deleted_at: number;
+
+  @OneToMany(() => Avatar, (avatar) => avatar.user)
+  avatars: Avatar[];
 }

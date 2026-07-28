@@ -7,6 +7,7 @@ import { ConfigModule } from '@nestjs/config';
 import { JwtStrategy } from './auth/strategies/jwt.strategy';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { dataSourceOptions } from './database/data-source';
+import { S3Module } from './providers/files/s3/s3.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { dataSourceOptions } from './database/data-source';
     }),
     AuthModule,
     UsersModule,
+    S3Module,
   ],
   controllers: [AppController],
   providers: [AppService, JwtStrategy],

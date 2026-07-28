@@ -1,16 +1,25 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UUID } from 'crypto';
-import type { ICreateUser, IUpdateUser, IUser } from 'src/common/interfaces';
+import type { ICreateUser, IUpdateUser } from 'src/common/interfaces';
 import { User } from './entities/user.entity';
 import { ILike, IsNull, Repository } from 'typeorm';
 import { IPaginationOptions, paginate } from 'nestjs-typeorm-paginate';
+import { S3Service } from 'src/providers/files/s3/s3.service';
+import {
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common/exceptions';
+import { Avatar } from './entities/avatars.entity';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    @InjectRepository(Avatar)
+    private avatarsRepository: Repository<Avatar>,
+    private s3Service: S3Service,
   ) {}
 
   async paginateByLogin(login: string, options: IPaginationOptions) {
@@ -85,5 +94,44 @@ export class UsersService {
   async updateUser(id: UUID, data: IUpdateUser) {
     const timestamp = Date.now();
     await this.usersRepository.update(id, { ...data, updated_at: timestamp });
+  }
+
+  async uploadAvatar(userId: string, avatar: Express.Multer.File) {
+    const avatarName = avatar.originalname;
+    const user = await this.usersRepository.findOne({
+      where: {
+        userId,
+        deleted_at: IsNull(),
+        avatars: {
+          deleted_at: IsNull(),
+        },
+      },
+      relations: { avatars: true },
+    });
+
+    if (!user) throw new NotFoundException();
+
+    if (user.avatars.length >= 5)
+      throw new ConflictException('The max number of avatars exceeded');
+
+    user.avatars.forEach((file) => {
+      if (file.filename === avatarName)
+        throw new ConflictException('Avatar with such name already exists');
+    });
+
+    const UploadFilePayload = {
+      file: avatar,
+      folder: user.userId,
+      name: avatarName,
+    };
+
+    await this.s3Service.uploadFile(UploadFilePayload);
+
+    const newAvatar = new Avatar();
+    newAvatar.filename = avatarName;
+    newAvatar.uploaded_at = Date.now();
+    newAvatar.user = user;
+
+    await this.avatarsRepository.save(newAvatar);
   }
 }
