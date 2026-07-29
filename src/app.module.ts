@@ -8,6 +8,8 @@ import { JwtStrategy } from './auth/strategies/jwt.strategy';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { dataSourceOptions } from './database/data-source';
 import { S3Module } from './providers/files/s3/s3.module';
+import { CacheModule } from '@nestjs/cache-manager';
+import KeyvRedis from '@keyv/redis';
 
 @Module({
   imports: [
@@ -19,6 +21,15 @@ import { S3Module } from './providers/files/s3/s3.module';
     AuthModule,
     UsersModule,
     S3Module,
+    CacheModule.registerAsync({
+      isGlobal: true,
+      useFactory: () => {
+        return {
+          ttl: 30000,
+          stores: [new KeyvRedis('redis://localhost:6379')],
+        };
+      },
+    }),
   ],
   controllers: [AppController],
   providers: [AppService, JwtStrategy],

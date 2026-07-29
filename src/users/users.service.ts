@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Inject } from '@nestjs/common/decorators';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UUID } from 'crypto';
 import type { ICreateUser, IUpdateUser } from 'src/common/interfaces';
@@ -14,10 +15,14 @@ import { Avatar } from './entities/avatars.entity';
 import { ActiveUsersQueryDto } from './dto/active-users-query.dto';
 import { Between } from 'typeorm/find-options/operator/Between.js';
 import { Not } from 'typeorm/find-options/operator/Not.js';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { type Cache } from 'cache-manager';
 
 @Injectable()
 export class UsersService {
   constructor(
+    @Inject(CACHE_MANAGER)
+    private cacheManager: Cache,
     @InjectRepository(User)
     private usersRepository: Repository<User>,
     @InjectRepository(Avatar)
@@ -26,7 +31,11 @@ export class UsersService {
   ) {}
 
   async paginateByLogin(login: string, options: IPaginationOptions) {
-    return (
+    const key = `${login}?limit=${options.limit}?page=${options.page}`;
+    const value = await this.cacheManager.get(key);
+    if (value) return value;
+
+    const data = (
       await paginate(this.usersRepository, options, {
         select: {
           login: true,
@@ -37,6 +46,10 @@ export class UsersService {
         where: { login: ILike(`%${login}%`), deleted_at: IsNull() },
       })
     ).items;
+
+    await this.cacheManager.set(key, data);
+
+    return data;
   }
 
   async findByLogin(login: string) {
@@ -54,7 +67,11 @@ export class UsersService {
   }
 
   async findById(id: UUID) {
-    return await this.usersRepository.findOne({
+    const value = await this.cacheManager.get(id);
+
+    if (value) return value;
+
+    const user = await this.usersRepository.findOne({
       where: {
         userId: id,
         deleted_at: IsNull(),
@@ -66,6 +83,10 @@ export class UsersService {
         description: true,
       },
     });
+
+    await this.cacheManager.set(id, user);
+
+    return user;
   }
 
   async findByEmail(email: string) {
@@ -91,12 +112,14 @@ export class UsersService {
     if (user) {
       user.deleted_at = timestamp;
       await this.usersRepository.save(user);
+      await this.cacheManager.del(id);
     }
   }
 
   async updateUser(id: UUID, data: IUpdateUser) {
     const timestamp = Date.now();
     await this.usersRepository.update(id, { ...data, updated_at: timestamp });
+    await this.cacheManager.del(id);
   }
 
   async uploadAvatar(userId: string, avatar: Express.Multer.File) {
