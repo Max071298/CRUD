@@ -17,39 +17,42 @@ import { UsersService } from './users.service';
 import { JwtGuard } from 'src/auth/guards/jwt.guard';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PaginationQueryDto } from './dto/pagination-query.dto';
-import { NotImplementedException } from '@nestjs/common/exceptions';
 import { Post } from '@nestjs/common/decorators';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { type Express } from 'express';
+import { RemoveAvatarDto } from './dto/remove-avatar.dto';
+import { ActiveUsersQueryDto } from './dto/active-users-query.dto';
 
+@UseGuards(JwtGuard)
 @Controller('users')
 export class UsersController {
   constructor(private usersService: UsersService) {}
 
-  @UseGuards(JwtGuard)
   @Get('me')
   async getPersonalData(@Request() req) {
     return await this.usersService.findById(req.user.userId);
   }
 
-  @UseGuards(JwtGuard)
   @Delete('me')
   async deleteUser(@Request() req) {
     return await this.usersService.deleteUser(req.user.userId);
   }
 
-  @UseGuards(JwtGuard)
   @Patch('me')
   async updateUser(@Request() req, @Body() dto: UpdateUserDto) {
     return await this.usersService.updateUser(req.user.userId, dto);
   }
 
-  @Get('avatars')
-  getAvatars() {
-    throw new NotImplementedException();
+  @Get('active')
+  async getActiveUsers(@Query() dto: ActiveUsersQueryDto) {
+    return await this.usersService.getActiveUsers(dto);
   }
 
-  @UseGuards(JwtGuard)
+  @Delete('avatars')
+  async removeAvatar(@Request() req, @Body() dto: RemoveAvatarDto) {
+    return await this.usersService.removeAvatar(req.user.userId, dto.filename);
+  }
+
   @Post('avatars/upload')
   @UseInterceptors(FileInterceptor('file'))
   async uploadAvatar(
@@ -62,11 +65,9 @@ export class UsersController {
     file: Express.Multer.File,
     @Request() req,
   ) {
-    console.log(file);
     return await this.usersService.uploadAvatar(req.user.userId, file);
   }
 
-  @UseGuards(JwtGuard)
   @Get(':login')
   async getUsersData(
     @Param('login') login: string,

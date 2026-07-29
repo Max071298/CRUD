@@ -11,6 +11,9 @@ import {
   NotFoundException,
 } from '@nestjs/common/exceptions';
 import { Avatar } from './entities/avatars.entity';
+import { ActiveUsersQueryDto } from './dto/active-users-query.dto';
+import { Between } from 'typeorm/find-options/operator/Between.js';
+import { Not } from 'typeorm/find-options/operator/Not.js';
 
 @Injectable()
 export class UsersService {
@@ -133,5 +136,81 @@ export class UsersService {
     newAvatar.user = user;
 
     await this.avatarsRepository.save(newAvatar);
+  }
+
+  async removeAvatar(userId: string, filename: string) {
+    const user = await this.usersRepository.findOne({
+      where: {
+        userId,
+        deleted_at: IsNull(),
+        avatars: {
+          deleted_at: IsNull(),
+        },
+      },
+      relations: { avatars: true },
+    });
+
+    if (!user) throw new NotFoundException();
+
+    const avatar = user.avatars.find((file) => file.filename === filename);
+
+    if (!avatar) throw new NotFoundException();
+
+    const removeFilePayload = {
+      path: `${user.userId}/${filename}`,
+    };
+
+    await this.s3Service.removeFile(removeFilePayload);
+
+    await this.avatarsRepository.update(avatar.avatarId, {
+      deleted_at: Date.now(),
+    });
+  }
+
+  async getActiveUsers(dto: ActiveUsersQueryDto) {
+    const { minAge, maxAge } = dto;
+
+    const users = await this.usersRepository.find({
+      where: {
+        age: Between(minAge, maxAge),
+        deleted_at: IsNull(),
+        description: Not(IsNull()),
+        avatars: {
+          deleted_at: IsNull(),
+        },
+      },
+      relations: {
+        avatars: true,
+      },
+      order: {
+        avatars: {
+          uploaded_at: 'DESC',
+        },
+      },
+      select: {
+        userId: true,
+        email: true,
+        age: true,
+        description: true,
+        avatars: true,
+      },
+    });
+
+    const activeUsers = users.filter((user) => user.avatars.length > 2);
+
+    activeUsers.map((user) => {
+      // user.avatars.reduce((res, current) => {
+      //   if (current.uploaded_at > res.uploaded_at) res = current;
+      //   return res;
+      // });
+
+      return {
+        email: user.email,
+        age: user.age,
+        description: user.description,
+        avatar: user.avatars[0].filename,
+      };
+    });
+    return activeUsers;
   }
 }
