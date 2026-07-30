@@ -17,6 +17,7 @@ import { Between } from 'typeorm/find-options/operator/Between.js';
 import { Not } from 'typeorm/find-options/operator/Not.js';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { type Cache } from 'cache-manager';
+import { Transactional } from 'typeorm-transactional';
 
 @Injectable()
 export class UsersService {
@@ -221,12 +222,7 @@ export class UsersService {
 
     const activeUsers = users.filter((user) => user.avatars.length > 2);
 
-    activeUsers.map((user) => {
-      // user.avatars.reduce((res, current) => {
-      //   if (current.uploaded_at > res.uploaded_at) res = current;
-      //   return res;
-      // });
-
+    return activeUsers.map((user) => {
       return {
         email: user.email,
         age: user.age,
@@ -234,6 +230,24 @@ export class UsersService {
         avatar: user.avatars[0].filename,
       };
     });
-    return activeUsers;
+  }
+
+  @Transactional()
+  async makeMoneyTransfer(
+    senderId: string,
+    receiverEmail: string,
+    amount: number,
+  ) {
+    await this.usersRepository.decrement(
+      { userId: senderId },
+      'balance',
+      amount,
+    );
+
+    await this.usersRepository.increment(
+      { email: receiverEmail },
+      'balance',
+      amount,
+    );
   }
 }

@@ -17,11 +17,12 @@ import { UsersService } from './users.service';
 import { JwtGuard } from 'src/auth/guards/jwt.guard';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PaginationQueryDto } from './dto/pagination-query.dto';
-import { Post } from '@nestjs/common/decorators';
+import { Post, HttpCode } from '@nestjs/common/decorators';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { type Express } from 'express';
 import { RemoveAvatarDto } from './dto/remove-avatar.dto';
 import { ActiveUsersQueryDto } from './dto/active-users-query.dto';
+import { MakeMoneyTransferDto } from './dto/make-money-transfer.dto';
 
 @UseGuards(JwtGuard)
 @Controller('users')
@@ -41,6 +42,16 @@ export class UsersController {
   @Patch('me')
   async updateUser(@Request() req, @Body() dto: UpdateUserDto) {
     return await this.usersService.updateUser(req.user.userId, dto);
+  }
+
+  @Post('me/transfer')
+  @HttpCode(200)
+  async makeMoneyTransfer(@Request() req, @Body() dto: MakeMoneyTransferDto) {
+    return await this.usersService.makeMoneyTransfer(
+      req.user.userId,
+      dto.receiver,
+      dto.amount,
+    );
   }
 
   @Get('active')
