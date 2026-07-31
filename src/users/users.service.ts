@@ -250,4 +250,8 @@ export class UsersService {
       amount,
     );
   }
+
+  async resetBalances() {
+    await this.usersRepository.updateAll({ balance: 0 });
+  }
 }

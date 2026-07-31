@@ -12,6 +12,8 @@ import { CacheModule } from '@nestjs/cache-manager';
 import KeyvRedis from '@keyv/redis';
 import { addTransactionalDataSource } from 'typeorm-transactional';
 import { DataSource } from 'typeorm/data-source/DataSource.js';
+import { BullModule } from '@nestjs/bullmq';
+import { BalanceResetModule } from './balance-reset/balance-reset.module';
 
 @Module({
   imports: [
@@ -43,6 +45,13 @@ import { DataSource } from 'typeorm/data-source/DataSource.js';
         };
       },
     }),
+    BullModule.forRoot({
+      connection: {
+        host: 'localhost',
+        port: 6379,
+      },
+    }),
+    BalanceResetModule,
   ],
   controllers: [AppController],
   providers: [AppService, JwtStrategy],
