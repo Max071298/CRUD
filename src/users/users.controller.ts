@@ -23,6 +23,7 @@ import { type Express } from 'express';
 import { RemoveAvatarDto } from './dto/remove-avatar.dto';
 import { ActiveUsersQueryDto } from './dto/active-users-query.dto';
 import { MakeMoneyTransferDto } from './dto/make-money-transfer.dto';
+import { SetBalanceDto } from './dto/set-balance.dto';
 
 @UseGuards(JwtGuard)
 @Controller('users')
@@ -59,12 +60,12 @@ export class UsersController {
     return await this.usersService.getActiveUsers(dto);
   }
 
-  @Delete('avatars')
+  @Delete('me/avatars/remove')
   async removeAvatar(@Request() req, @Body() dto: RemoveAvatarDto) {
     return await this.usersService.removeAvatar(req.user.userId, dto.filename);
   }
 
-  @Post('avatars/upload')
+  @Post('me/avatars/upload')
   @UseInterceptors(FileInterceptor('file'))
   async uploadAvatar(
     @UploadedFile(
@@ -77,6 +78,11 @@ export class UsersController {
     @Request() req,
   ) {
     return await this.usersService.uploadAvatar(req.user.userId, file);
+  }
+
+  @Post('set-balance')
+  async setBalance(@Body() dto: SetBalanceDto) {
+    return await this.usersService.setBalance(dto);
   }
 
   @Get(':login')

@@ -36,19 +36,21 @@ import { BalanceResetModule } from './balance-reset/balance-reset.module';
     AuthModule,
     UsersModule,
     S3Module,
-    CacheModule.registerAsync({
+    CacheModule.register({
       isGlobal: true,
-      useFactory: () => {
-        return {
-          ttl: 30000,
-          stores: [new KeyvRedis('redis://localhost:6379')],
-        };
-      },
+      ttl: 30000,
+      stores: [
+        new KeyvRedis({
+          url: 'redis://localhost:6379',
+          password: process.env.REDIS_PASSWORD,
+        }),
+      ],
     }),
     BullModule.forRoot({
       connection: {
         host: 'localhost',
-        port: 6379,
+        port: Number(process.env.REDIS_PORT),
+        password: process.env.REDIS_PASSWORD,
       },
     }),
     BalanceResetModule,

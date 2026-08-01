@@ -1,15 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Inject } from '@nestjs/common/decorators';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UUID } from 'crypto';
 import type { ICreateUser, IUpdateUser } from 'src/common/interfaces';
 import { User } from './entities/user.entity';
-import { ILike, IsNull, Repository } from 'typeorm';
+import { ILike, IsNull, QueryFailedError, Repository } from 'typeorm';
 import { IPaginationOptions, paginate } from 'nestjs-typeorm-paginate';
 import { S3Service } from 'src/providers/files/s3/s3.service';
 import {
   ConflictException,
   NotFoundException,
+  HttpException,
 } from '@nestjs/common/exceptions';
 import { Avatar } from './entities/avatars.entity';
 import { ActiveUsersQueryDto } from './dto/active-users-query.dto';
@@ -18,9 +19,12 @@ import { Not } from 'typeorm/find-options/operator/Not.js';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { type Cache } from 'cache-manager';
 import { Transactional } from 'typeorm-transactional';
+import { SetBalanceDto } from './dto/set-balance.dto';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     @Inject(CACHE_MANAGER)
     private cacheManager: Cache,
@@ -68,26 +72,38 @@ export class UsersService {
   }
 
   async findById(id: UUID) {
-    const value = await this.cacheManager.get(id);
+    this.logger.log(`Search for information about userId:${id}`);
 
-    if (value) return value;
+    try {
+      const value = await this.cacheManager.get(id);
 
-    const user = await this.usersRepository.findOne({
-      where: {
-        userId: id,
-        deleted_at: IsNull(),
-      },
-      select: {
-        login: true,
-        email: true,
-        age: true,
-        description: true,
-      },
-    });
+      if (value) return value;
 
-    await this.cacheManager.set(id, user);
+      const user = await this.usersRepository.findOne({
+        where: {
+          userId: id,
+          deleted_at: IsNull(),
+        },
+        select: {
+          login: true,
+          email: true,
+          age: true,
+          description: true,
+          balance: true,
+        },
+      });
 
-    return user;
+      await this.cacheManager.set(id, user);
+
+      this.logger.log(`Information about userId:${id} found successfully`);
+
+      return user;
+    } catch (err) {
+      this.logger.error(
+        `Failed to search for information about userId:${id}`,
+        err instanceof Error ? err.stack : err,
+      );
+    }
   }
 
   async findByEmail(email: string) {
@@ -108,128 +124,183 @@ export class UsersService {
   }
 
   async deleteUser(id: UUID) {
-    const timestamp = Date.now();
-    const user = await this.usersRepository.findOneBy({ userId: id });
-    if (user) {
-      user.deleted_at = timestamp;
-      await this.usersRepository.save(user);
-      await this.cacheManager.del(id);
+    this.logger.log(`Deleting information about userId:${id}...`);
+
+    try {
+      const timestamp = Date.now();
+      const user = await this.usersRepository.findOneBy({ userId: id });
+      if (user) {
+        user.deleted_at = timestamp;
+        await this.usersRepository.save(user);
+        await this.cacheManager.del(id);
+      }
+    } catch (err) {
+      this.logger.error(
+        `Error during userId:${id} deletion!`,
+        err instanceof Error ? err.stack : err,
+      );
     }
   }
 
   async updateUser(id: UUID, data: IUpdateUser) {
-    const timestamp = Date.now();
-    await this.usersRepository.update(id, { ...data, updated_at: timestamp });
-    await this.cacheManager.del(id);
+    this.logger.log(`Updating information about userId:${id}...`);
+    try {
+      const timestamp = Date.now();
+      await this.usersRepository.update(id, { ...data, updated_at: timestamp });
+      await this.cacheManager.del(id);
+      this.logger.log(`Information about userId:${id} successfully updated!`);
+    } catch (err) {
+      this.logger.error(
+        `Error during userId:${id} update`,
+        err instanceof Error ? err.stack : err,
+      );
+    }
   }
 
   async uploadAvatar(userId: string, avatar: Express.Multer.File) {
-    const avatarName = avatar.originalname;
-    const user = await this.usersRepository.findOne({
-      where: {
-        userId,
-        deleted_at: IsNull(),
-        avatars: {
+    this.logger.log(`Uploading avatar for userId:${userId}...`);
+
+    try {
+      const avatarName = avatar.originalname;
+      const user = await this.usersRepository.findOne({
+        where: {
+          userId,
           deleted_at: IsNull(),
+          // avatars: {
+          //   deleted_at: IsNull(),
+          // },
         },
-      },
-      relations: { avatars: true },
-    });
+        relations: { avatars: true },
+      });
 
-    if (!user) throw new NotFoundException();
+      if (!user) throw new NotFoundException();
 
-    if (user.avatars.length >= 5)
-      throw new ConflictException('The max number of avatars exceeded');
+      if (
+        user.avatars.filter((avatar) => avatar.deleted_at !== null).length >= 5
+      )
+        throw new ConflictException('The max number of avatars exceeded');
 
-    user.avatars.forEach((file) => {
-      if (file.filename === avatarName)
-        throw new ConflictException('Avatar with such name already exists');
-    });
+      user.avatars.forEach((file) => {
+        if (file.filename === avatarName && file.deleted_at === null)
+          throw new ConflictException('Avatar with such name already exists');
+      });
 
-    const UploadFilePayload = {
-      file: avatar,
-      folder: user.userId,
-      name: avatarName,
-    };
+      const UploadFilePayload = {
+        file: avatar,
+        folder: user.userId,
+        name: avatarName,
+      };
 
-    await this.s3Service.uploadFile(UploadFilePayload);
+      await this.s3Service.uploadFile(UploadFilePayload);
 
-    const newAvatar = new Avatar();
-    newAvatar.filename = avatarName;
-    newAvatar.uploaded_at = Date.now();
-    newAvatar.user = user;
+      const newAvatar = new Avatar();
+      newAvatar.filename = avatarName;
+      newAvatar.uploaded_at = Date.now();
+      newAvatar.user = user;
 
-    await this.avatarsRepository.save(newAvatar);
+      await this.avatarsRepository.save(newAvatar);
+    } catch (err) {
+      this.logger.error(
+        `Error during uploading avatar for userId:${userId}`,
+        err instanceof Error ? err.stack : err,
+      );
+
+      throw err;
+    }
   }
 
   async removeAvatar(userId: string, filename: string) {
-    const user = await this.usersRepository.findOne({
-      where: {
-        userId,
-        deleted_at: IsNull(),
-        avatars: {
+    this.logger.log(`Deleting avatar for userId:${userId}...`);
+
+    try {
+      const user = await this.usersRepository.findOne({
+        where: {
+          userId,
           deleted_at: IsNull(),
+          avatars: {
+            deleted_at: IsNull(),
+          },
         },
-      },
-      relations: { avatars: true },
-    });
+        relations: { avatars: true },
+      });
 
-    if (!user) throw new NotFoundException();
+      if (!user) throw new NotFoundException();
 
-    const avatar = user.avatars.find((file) => file.filename === filename);
+      const avatar = user.avatars.find((file) => file.filename === filename);
 
-    if (!avatar) throw new NotFoundException();
+      if (!avatar) throw new NotFoundException();
 
-    const removeFilePayload = {
-      path: `${user.userId}/${filename}`,
-    };
+      const removeFilePayload = {
+        path: `${user.userId}/${filename}`,
+      };
 
-    await this.s3Service.removeFile(removeFilePayload);
+      await this.s3Service.removeFile(removeFilePayload);
 
-    await this.avatarsRepository.update(avatar.avatarId, {
-      deleted_at: Date.now(),
-    });
+      await this.avatarsRepository.update(avatar.avatarId, {
+        deleted_at: Date.now(),
+      });
+    } catch (err) {
+      this.logger.error(
+        `Error during deleting avatar for userId:${userId}`,
+        err instanceof Error ? err.stack : err,
+      );
+
+      throw err;
+    }
   }
 
   async getActiveUsers(dto: ActiveUsersQueryDto) {
     const { minAge, maxAge } = dto;
 
-    const users = await this.usersRepository.find({
-      where: {
-        age: Between(minAge, maxAge),
-        deleted_at: IsNull(),
-        description: Not(IsNull()),
-        avatars: {
+    this.logger.log(
+      `Searching for the most active users with age from ${minAge} to ${maxAge}...`,
+    );
+
+    try {
+      const users = await this.usersRepository.find({
+        where: {
+          age: Between(minAge, maxAge),
           deleted_at: IsNull(),
+          description: Not(IsNull()),
+          avatars: {
+            deleted_at: IsNull(),
+          },
         },
-      },
-      relations: {
-        avatars: true,
-      },
-      order: {
-        avatars: {
-          uploaded_at: 'DESC',
+        relations: {
+          avatars: true,
         },
-      },
-      select: {
-        userId: true,
-        email: true,
-        age: true,
-        description: true,
-        avatars: true,
-      },
-    });
+        order: {
+          avatars: {
+            uploaded_at: 'DESC',
+          },
+        },
+        select: {
+          userId: true,
+          email: true,
+          age: true,
+          description: true,
+          avatars: true,
+        },
+      });
 
-    const activeUsers = users.filter((user) => user.avatars.length > 2);
+      const activeUsers = users.filter((user) => user.avatars.length > 2);
 
-    return activeUsers.map((user) => {
-      return {
-        email: user.email,
-        age: user.age,
-        description: user.description,
-        avatar: user.avatars[0].filename,
-      };
-    });
+      return activeUsers.map((user) => {
+        return {
+          email: user.email,
+          age: user.age,
+          description: user.description,
+          avatar: user.avatars[0].filename,
+        };
+      });
+    } catch (err) {
+      this.logger.error(
+        `Error during the searching for the most active users with age from ${minAge} to ${maxAge}`,
+        err instanceof Error ? err.stack : err,
+      );
+
+      throw err;
+    }
   }
 
   @Transactional()
@@ -238,20 +309,74 @@ export class UsersService {
     receiverEmail: string,
     amount: number,
   ) {
-    await this.usersRepository.decrement(
-      { userId: senderId },
-      'balance',
-      amount,
+    this.logger.log(
+      `Start money transfer transaction between senderId:${senderId} and receiverEmail:${receiverEmail}`,
     );
 
-    await this.usersRepository.increment(
-      { email: receiverEmail },
-      'balance',
-      amount,
-    );
+    try {
+      await this.usersRepository.decrement(
+        { userId: senderId },
+        'balance',
+        amount,
+      );
+
+      await this.usersRepository.increment(
+        { email: receiverEmail },
+        'balance',
+        amount,
+      );
+
+      this.logger.log(
+        `Money transfer transaction between senderId:${senderId} and receiverEmail:${receiverEmail} DONE`,
+      );
+    } catch (err) {
+      this.logger.error(
+        `Error during money transfer transaction between senderId:${senderId} and receiverEmail:${receiverEmail}`,
+        err instanceof QueryFailedError ? err.driverError : err,
+      );
+
+      if (err instanceof QueryFailedError) {
+        if (err.driverError.code === '23514') {
+          throw new HttpException('Not enough money', 402);
+        }
+      }
+
+      throw err;
+    }
   }
 
   async resetBalances() {
-    await this.usersRepository.updateAll({ balance: 0 });
+    this.logger.log('Start of the users balance reset operation');
+    try {
+      await this.usersRepository.updateAll({ balance: 0 });
+      this.logger.log('Users balance reset operation successfully done');
+    } catch (err) {
+      this.logger.error(
+        'Error during users balance reset operation',
+        err instanceof Error ? err.stack : err,
+      );
+
+      throw err;
+    }
+  }
+
+  async setBalance(data: SetBalanceDto) {
+    const { login, amount } = data;
+    this.logger.log(
+      `Setting the balance with amount ${amount}$ for user with login:${login}...`,
+    );
+    try {
+      await this.usersRepository.update({ login }, { balance: amount });
+      this.logger.log(
+        `Balance with amount ${amount}$ successfully added for user with login:${login}`,
+      );
+    } catch (err) {
+      this.logger.error(
+        `Error during setting the balance with amount ${amount}$ for user with login:${login}`,
+        err instanceof Error ? err.stack : err,
+      );
+
+      throw err;
+    }
   }
 }
