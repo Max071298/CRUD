@@ -36,25 +36,47 @@ export class UsersService {
   ) {}
 
   async paginateByLogin(login: string, options: IPaginationOptions) {
-    const key = `${login}?limit=${options.limit}?page=${options.page}`;
-    const value = await this.cacheManager.get(key);
-    if (value) return value;
+    this.logger.log(
+      `Starting pagination by login:${login}, limitPerPage:${options.limit}, page:${options.page}...`,
+    );
 
-    const data = (
-      await paginate(this.usersRepository, options, {
-        select: {
-          login: true,
-          email: true,
-          age: true,
-          description: true,
-        },
-        where: { login: ILike(`%${login}%`), deleted_at: IsNull() },
-      })
-    ).items;
+    try {
+      const key = `${login}?limit=${options.limit}?page=${options.page}`;
+      const value = await this.cacheManager.get(key);
+      if (value) {
+        this.logger.log(
+          `Pagination by login:${login}, limitPerPage:${options.limit}, page:${options.page} succeeded`,
+        );
+        return value;
+      }
 
-    await this.cacheManager.set(key, data);
+      const data = (
+        await paginate(this.usersRepository, options, {
+          select: {
+            login: true,
+            email: true,
+            age: true,
+            description: true,
+          },
+          where: { login: ILike(`%${login}%`), deleted_at: IsNull() },
+        })
+      ).items;
 
-    return data;
+      await this.cacheManager.set(key, data);
+
+      this.logger.log(
+        `Pagination by login:${login}, limitPerPage:${options.limit}, page:${options.page} succeeded`,
+      );
+
+      return data;
+    } catch (err) {
+      this.logger.error(
+        `Error during pagination by login:${login}, limitPerPage:${options.limit}, page:${options.page}`,
+        err,
+      );
+
+      throw err;
+    }
   }
 
   async findByLogin(login: string) {
@@ -77,7 +99,10 @@ export class UsersService {
     try {
       const value = await this.cacheManager.get(id);
 
-      if (value) return value;
+      if (value) {
+        this.logger.log(`Information about userId:${id} found successfully`);
+        return value;
+      }
 
       const user = await this.usersRepository.findOne({
         where: {
