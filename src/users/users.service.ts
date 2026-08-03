@@ -10,7 +10,6 @@ import { S3Service } from 'src/providers/files/s3/s3.service';
 import {
   ConflictException,
   NotFoundException,
-  HttpException,
 } from '@nestjs/common/exceptions';
 import { Avatar } from './entities/avatars.entity';
 import { ActiveUsersQueryDto } from './dto/active-users-query.dto';
@@ -128,6 +127,8 @@ export class UsersService {
         `Failed to search for information about userId:${id}`,
         err instanceof Error ? err.stack : err,
       );
+
+      throw err;
     }
   }
 
@@ -164,6 +165,8 @@ export class UsersService {
         `Error during userId:${id} deletion!`,
         err instanceof Error ? err.stack : err,
       );
+
+      throw err;
     }
   }
 
@@ -179,6 +182,8 @@ export class UsersService {
         `Error during userId:${id} update`,
         err instanceof Error ? err.stack : err,
       );
+
+      throw err;
     }
   }
 
@@ -191,9 +196,6 @@ export class UsersService {
         where: {
           userId,
           deleted_at: IsNull(),
-          // avatars: {
-          //   deleted_at: IsNull(),
-          // },
         },
         relations: { avatars: true },
       });
@@ -359,12 +361,6 @@ export class UsersService {
         `Error during money transfer transaction between senderId:${senderId} and receiverEmail:${receiverEmail}`,
         err instanceof QueryFailedError ? err.driverError : err,
       );
-
-      if (err instanceof QueryFailedError) {
-        if (err.driverError.code === '23514') {
-          throw new HttpException('Not enough money', 402);
-        }
-      }
 
       throw err;
     }

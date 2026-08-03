@@ -185,7 +185,7 @@ describe('UsersService', () => {
       cacheManager.get.mockResolvedValue(undefined);
       usersRepository.findOne.mockRejectedValue(new Error('database error'));
 
-      await expect(service.findById(userId)).resolves.toBeUndefined();
+      await expect(service.findById(userId)).rejects.toThrow('database error');
     });
 
     it('findByEmail returns only the email field', async () => {
@@ -247,7 +247,9 @@ describe('UsersService', () => {
     it('catches repository errors', async () => {
       usersRepository.findOneBy.mockRejectedValue(new Error('database error'));
 
-      await expect(service.deleteUser(userId)).resolves.toBeUndefined();
+      await expect(service.deleteUser(userId)).rejects.toThrow(
+        'database error',
+      );
     });
   });
 
@@ -269,9 +271,9 @@ describe('UsersService', () => {
     it('catches repository errors', async () => {
       usersRepository.update.mockRejectedValue(new Error('database error'));
 
-      await expect(
-        service.updateUser(userId, { age: 31 }),
-      ).resolves.toBeUndefined();
+      await expect(service.updateUser(userId, { age: 31 })).rejects.toThrow(
+        'database error',
+      );
       expect(cacheManager.del).not.toHaveBeenCalled();
     });
   });
@@ -465,12 +467,13 @@ describe('UsersService', () => {
         name: 'driver error',
         message: 'check constraint failed',
         code: '23514',
+        table: '23514',
       });
       usersRepository.decrement.mockRejectedValue(error);
 
       await expect(
         service.makeMoneyTransfer(userId, 'receiver@example.com', 500),
-      ).rejects.toMatchObject({ status: 402 });
+      ).rejects.toThrow(QueryFailedError);
       expect(usersRepository.increment).not.toHaveBeenCalled();
     });
 
