@@ -6,6 +6,7 @@ import { JwtGuard } from 'src/auth/guards/jwt.guard';
 @Controller('balance-reset')
 export class BalanceResetController {
   constructor(private balanceResetService: BalanceResetService) {}
+
   @Post()
   async resetBalances() {
     return await this.balanceResetService.resetBalances();

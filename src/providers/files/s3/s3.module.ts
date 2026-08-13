@@ -10,13 +10,12 @@ import { S3Service } from './s3.service';
     {
       provide: S3Lib,
       useFactory: () => {
-        // TODO: укажи только accessKeyId, secretAccessKey
         return new AWS.S3({
           endpoint: 'http://127.0.0.1:9000',
           region: 'ru-central1',
           credentials: {
-            accessKeyId: 'Q2T96F9IYR7CKA89YY0N',
-            secretAccessKey: 'bjCaYAyHRHEJLdlYsYzaPmNRSB6uFlcpG9YpAIfY',
+            accessKeyId: process.env.S3_ACCESS_KEY_ID as string,
+            secretAccessKey: process.env.S3_SECRET_ACCESS_KEY as string,
           },
         });
       },

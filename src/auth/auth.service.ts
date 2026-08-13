@@ -3,6 +3,7 @@ import {
   Injectable,
   UnauthorizedException,
   Logger,
+  NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -25,6 +26,10 @@ export class AuthService {
 
     try {
       const user = await this.usersService.findByLogin(login);
+
+      if (!user) {
+        throw new NotFoundException(`User with login:${login} not found`);
+      }
 
       if (user && (await checkPassword(pass, user.password))) {
         const result = { userId: user.userId, login };

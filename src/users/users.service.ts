@@ -8,6 +8,7 @@ import { ILike, IsNull, QueryFailedError, Repository } from 'typeorm';
 import { IPaginationOptions, paginate } from 'nestjs-typeorm-paginate';
 import { S3Service } from 'src/providers/files/s3/s3.service';
 import {
+  BadRequestException,
   ConflictException,
   NotFoundException,
 } from '@nestjs/common/exceptions';
@@ -203,7 +204,7 @@ export class UsersService {
       if (!user) throw new NotFoundException();
 
       if (
-        user.avatars.filter((avatar) => avatar.deleted_at !== null).length >= 5
+        user.avatars.filter((avatar) => avatar.deleted_at === null).length >= 5
       )
         throw new ConflictException('The max number of avatars exceeded');
 
@@ -341,6 +342,15 @@ export class UsersService {
     );
 
     try {
+      const receiver = await this.usersRepository.findOne({
+        where: { email: receiverEmail, deleted_at: IsNull() },
+        select: { userId: true },
+      });
+
+      if (!receiver) throw new NotFoundException('Receiver not found');
+      if (receiver.userId === senderId)
+        throw new BadRequestException('Cannot transfer to yourself');
+
       await this.usersRepository.decrement(
         { userId: senderId },
         'balance',
@@ -352,6 +362,9 @@ export class UsersService {
         'balance',
         amount,
       );
+
+      await this.cacheManager.del(senderId);
+      await this.cacheManager.del(receiver.userId);
 
       this.logger.log(
         `Money transfer transaction between senderId:${senderId} and receiverEmail:${receiverEmail} DONE`,
@@ -370,6 +383,7 @@ export class UsersService {
     this.logger.log('Start of the users balance reset operation');
     try {
       await this.usersRepository.updateAll({ balance: 0 });
+      await this.cacheManager.clear();
       this.logger.log('Users balance reset operation successfully done');
     } catch (err) {
       this.logger.error(
@@ -387,7 +401,16 @@ export class UsersService {
       `Setting the balance with amount ${amount}$ for user with login:${login}...`,
     );
     try {
+      const user = await this.usersRepository.findOne({
+        where: { login, deleted_at: IsNull() },
+        select: { userId: true },
+      });
+
+      if (!user)
+        throw new NotFoundException(`User with login ${login} not found`);
       await this.usersRepository.update({ login }, { balance: amount });
+
+      await this.cacheManager.del(user.userId);
       this.logger.log(
         `Balance with amount ${amount}$ successfully added for user with login:${login}`,
       );

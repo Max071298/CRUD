@@ -41,7 +41,7 @@ import { BalanceResetModule } from './balance-reset/balance-reset.module';
       ttl: 30000,
       stores: [
         new KeyvRedis({
-          url: 'redis://localhost:6379',
+          url: process.env.KEYV_REDIS_URL,
           password: process.env.REDIS_PASSWORD,
         }),
       ],
