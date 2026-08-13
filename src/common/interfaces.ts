@@ -6,7 +6,7 @@ export interface ICreateUser {
   description: string;
 }
 
-export interface ISignInUser extends Pick<ICreateUser, 'login' | 'password'> {}
+export type ISignInUser = Pick<ICreateUser, 'login' | 'password'>;
 
 export interface IUser extends ICreateUser {
   userId: string;
@@ -22,4 +22,10 @@ export interface IUpdateUser {
   password?: string;
   age?: number;
   description?: string;
+}
+
+export interface DatabaseDriverError extends Error {
+  code: string;
+  detail?: string;
+  table?: string;
 }

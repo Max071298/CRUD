@@ -2,6 +2,8 @@ import {
   ConflictException,
   Injectable,
   UnauthorizedException,
+  Logger,
+  NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -12,6 +14,7 @@ import { UsersService } from 'src/users/users.service';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   constructor(
     private configService: ConfigService,
     private usersService: UsersService,
@@ -19,27 +22,54 @@ export class AuthService {
   ) {}
 
   async validateUser(login: string, pass: string) {
-    const user = await this.usersService.findByLogin(login);
+    this.logger.log(`Starting user validation with login ${login}...`);
 
-    if (user && (await checkPassword(pass, user.password))) {
-      const { password, ...result } = user;
-      return result;
+    try {
+      const user = await this.usersService.findByLogin(login);
+
+      if (!user) {
+        throw new NotFoundException(`User with login:${login} not found`);
+      }
+
+      if (user && (await checkPassword(pass, user.password))) {
+        const result = { userId: user.userId, login };
+
+        this.logger.log(`Validation of user with login ${login} succeeded`);
+        return result;
+      }
+
+      return null;
+    } catch (err) {
+      this.logger.error(
+        `Error during validation of user with login ${login}`,
+        err,
+      );
+      throw err;
     }
-
-    return null;
   }
 
-  async generateTokens(payload: IPayload) {
-    return {
-      access_token: this.jwtService.sign(payload, {
-        secret: this.configService.get('JWT_SECRET_KEY'),
-        expiresIn: this.configService.get('TOKEN_EXPIRE_TIME'),
-      }),
-      refresh_token: this.jwtService.sign(payload, {
-        secret: this.configService.get('JWT_SECRET_REFRESH_KEY'),
-        expiresIn: this.configService.get('TOKEN_REFRESH_EXPIRE_TIME'),
-      }),
-    };
+  generateTokens(payload: IPayload) {
+    this.logger.log(
+      `Starting tokens generation for user with login ${payload.login}`,
+    );
+
+    try {
+      return {
+        access_token: this.jwtService.sign(payload, {
+          secret: this.configService.get('JWT_SECRET_KEY'),
+          expiresIn: this.configService.get('TOKEN_EXPIRE_TIME'),
+        }),
+        refresh_token: this.jwtService.sign(payload, {
+          secret: this.configService.get('JWT_SECRET_REFRESH_KEY'),
+          expiresIn: this.configService.get('TOKEN_REFRESH_EXPIRE_TIME'),
+        }),
+      };
+    } catch (err) {
+      this.logger.error(
+        `Error during tokens generation for user with login ${payload.login}`,
+      );
+      throw err;
+    }
   }
 
   async register(user: ICreateUser) {
@@ -57,22 +87,54 @@ export class AuthService {
     const newUser = await this.usersService.createUser(user);
     const payload: IPayload = { sub: newUser.userId, login: newUser.login };
 
-    return await this.generateTokens(payload);
+    return this.generateTokens(payload);
   }
 
   async signIn(userData: ISignInUser) {
     const { login, password } = userData;
-    const user = await this.validateUser(login, password);
 
-    if (!user) throw new UnauthorizedException('Incorrect login or password');
+    this.logger.log(`Starting user authentication with login ${login}...`);
 
-    const payload: IPayload = { sub: user.userId, login: user.login };
+    try {
+      const user = await this.validateUser(login, password);
 
-    return await this.generateTokens(payload);
+      if (!user) throw new UnauthorizedException('Incorrect login or password');
+
+      const payload: IPayload = { sub: user.userId, login: user.login };
+
+      const tokens = this.generateTokens(payload);
+
+      this.logger.log(
+        `Tokens generated, user authentication with login ${login} succeeded`,
+      );
+
+      return tokens;
+    } catch (err) {
+      this.logger.error(
+        `Error during user authentication with login ${login}`,
+        err,
+      );
+
+      throw err;
+    }
   }
 
-  async refreshTokens(userId: string, login: string) {
+  refreshTokens(userId: string, login: string) {
     const payload: IPayload = { sub: userId, login };
-    return await this.generateTokens(payload);
+
+    try {
+      const tokens = this.generateTokens(payload);
+      this.logger.log(
+        `New tokens for user with login ${login} successfully generated`,
+      );
+      return tokens;
+    } catch (err) {
+      this.logger.error(
+        `Error during refreshing tokens for user with login ${login}`,
+        err,
+      );
+
+      throw err;
+    }
   }
 }
